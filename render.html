@@ -25,8 +25,9 @@ window.GV = {
     preset: q.get('preset') || 'genel',
     format: q.get('format') || '16x9',
     seed: Number(q.get('seed') || 1),
+    channel: q.get('channel') || 'genel',
     games: q.get('games') ? q.get('games').split(',') : null,
-  }).then(() => video.script),
+  }).then(() => ({ ...video.script, shareUrl: video.shareUrl, qrUrl: video.qrUrl })),
   frame(t, quality = 0.92) {
     video.draw(t);
     return video.canvas.toDataURL('image/jpeg', quality);

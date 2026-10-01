@@ -23,6 +23,20 @@ Her sahnenin altında kayan gökkuşağı şeritli, harfleri zıplayan **geogame
 
 **Geogo pozları** (`assets/mascot/`): düşünen (kanca sorusu), mutlu (cevap, Eğlenceli), sırt çantalı (marka), harita (Eğitici), öğretmen (akıllı tahta), dürbün (çağrı, yatay/kare), araba (çağrı, dikey) ve oyun kartlarının köşesinde dönüşümlü olarak araba, kamera, harita, dürbün, kışlık, işaret eden, mutlu, sırt çantalı.
 
+## Kanal takibi
+
+Stüdyoda **Paylaşılacak kanal** seçilince (Instagram, YouTube, TikTok, Facebook, WhatsApp, Telegram, Ücretli reklam) videodaki QR kod ve **paylaşım bağlantısı** o kanala göre UTM etiketi alır:
+
+```
+https://geogames.site/?utm_source=whatsapp&utm_medium=messaging&utm_campaign=geogo_video_ogretmen&utm_content=9x16_link
+```
+
+- `utm_source` / `utm_medium`: kanal
+- `utm_campaign`: kurgu (genel, ogretmen, sinav, kesif, rastgele)
+- `utm_content`: format + QR mı bağlantı mı (`9x16_qr`, `9x16_link`)
+
+Google Analytics 4 → **Raporlar → Edinme → Trafik edinme** ekranında boyutu *Oturum kaynağı/aracı* ya da *Oturum kampanyası* yapın; hangi kanalın ve kurgunun ziyaretçi getirdiği görünür. Komut satırında: `--channel whatsapp,instagram` (her video için `.link.txt` dosyası da üretilir).
+
 ## Kurgular ve formatlar
 
 | Kurgu | Hedef |

@@ -2,7 +2,7 @@
 // draw(t) aynı t için her zaman aynı kareyi üretir → tarayıcıda canlı önizleme,
 // MediaRecorder kaydı ve headless (Puppeteer + ffmpeg) MP4 üretimi aynı kodu kullanır.
 import { gameById, SITE_URL } from './games.js';
-import { buildScript, FORMATS, mulberry32 } from './presets.js';
+import { buildScript, FORMATS, CHANNELS, mulberry32, trackingUrl } from './presets.js';
 
 export const DURATION = 60;
 export const FPS = 30;
@@ -126,8 +126,10 @@ export class GeoGoVideo {
     }
     await Promise.all(jobs);
 
-    const campaign = `geogo_video_${this.script.preset}_${this.format}`;
-    this.qrUrl = `https://${SITE_URL}/?utm_source=video&utm_medium=qr&utm_campaign=${campaign}`;
+    this.channel = opts.channel in CHANNELS ? opts.channel : 'genel';
+    const track = { host: SITE_URL, preset: this.script.preset, format: this.format, channel: this.channel };
+    this.qrUrl = trackingUrl({ ...track, via: 'qr' });
+    this.shareUrl = trackingUrl({ ...track, via: 'link' });
     this.qr = null;
     if (typeof window !== 'undefined' && window.qrcode) {
       const q = window.qrcode(0, 'M');

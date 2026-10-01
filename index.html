@@ -44,9 +44,10 @@
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
   .card h2 { font-family: 'Baloo 2', sans-serif; font-size: 20px; margin: 0 0 10px; }
   label { display: block; font-size: 13px; color: var(--muted); font-weight: 800; margin: 10px 0 6px; }
-  select, input[type=number] { width: 100%; font: inherit; font-weight: 700; background: #0b1430; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  select, input[type=number], #link { width: 100%; font: inherit; font-weight: 700; background: #0b1430; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
+  #link { font-size: 12px; font-weight: 700; min-width: 0; }
   .games { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 220px; overflow: auto; margin-top: 6px; }
   .games label { margin: 0; display: flex; gap: 6px; align-items: center; color: var(--text); font-weight: 700; font-size: 13px; background: #0b1430; border-radius: 8px; padding: 6px 8px; cursor: pointer; }
   .hint { font-size: 13px; color: var(--muted); line-height: 1.45; }
@@ -100,12 +101,18 @@
       <select id="preset"></select>
       <label for="format">Format</label>
       <select id="format"></select>
+      <label for="channel">Paylaşılacak kanal (QR ve bağlantı buna göre izlenir)</label>
+      <select id="channel"></select>
       <div class="row">
         <div><label for="seed">Seed (renk/varyasyon)</label><input id="seed" type="number" min="1" value="1"></div>
         <div style="flex:none;align-self:flex-end"><button id="dice" title="Rastgele seed">🎲</button></div>
       </div>
       <label>Oyunlar (en fazla 8, boş bırakılırsa kurgunun seçimi)</label>
       <div class="games" id="games"></div>
+      <div class="share">
+        <label for="link">Paylaşım bağlantısı (gönderi açıklamasına / mesaja ekleyin)</label>
+        <div class="row"><input id="link" readonly><div style="flex:none"><button id="copy" title="Kopyala">📋 Kopyala</button></div></div>
+      </div>
       <div class="actions">
         <button id="record" class="pink">⏺ Videoyu kaydet ve indir (60 sn)</button>
         <div class="progress" id="prog"><i></i></div>
@@ -123,7 +130,7 @@
 <script type="module">
 import { GeoGoVideo, DURATION, SCENES, CARD_LEN } from './src/engine.js';
 import { scheduleSoundtrack } from './src/music.js';
-import { PRESETS, FORMATS } from './src/presets.js';
+import { PRESETS, FORMATS, CHANNELS } from './src/presets.js';
 import { GAMES, gameById } from './src/games.js';
 
 const REPO = 'yazilimsalhobi/geogo_video';
@@ -134,6 +141,7 @@ let t = 0, playing = null, recording = false;
 
 for (const [k, p] of Object.entries(PRESETS)) $('preset').add(new Option(p.label, k));
 for (const [k, f] of Object.entries(FORMATS)) $('format').add(new Option(f.label, k));
+for (const [k, c] of Object.entries(CHANNELS)) $('channel').add(new Option(c.label, k));
 GAMES.forEach((g) => {
   const l = document.createElement('label');
   l.innerHTML = `<input type="checkbox" value="${g.id}"> ${g.title}`;
@@ -147,6 +155,7 @@ const q = new URLSearchParams(location.search);
 if (q.get('preset') in PRESETS) $('preset').value = q.get('preset');
 if (q.get('format') in FORMATS) $('format').value = q.get('format');
 if (q.get('seed')) $('seed').value = q.get('seed');
+if (q.get('channel') in CHANNELS) $('channel').value = q.get('channel');
 
 const selected = () => [...$('games').querySelectorAll('input:checked')].map((i) => i.value);
 $('games').addEventListener('change', (e) => {
@@ -156,9 +165,10 @@ $('games').addEventListener('change', (e) => {
 
 async function reload() {
   stop();
-  const opts = { preset: $('preset').value, format: $('format').value, seed: Number($('seed').value) || 1, games: selected() };
-  history.replaceState(null, '', `?preset=${opts.preset}&format=${opts.format}&seed=${opts.seed}`);
+  const opts = { preset: $('preset').value, format: $('format').value, seed: Number($('seed').value) || 1, channel: $('channel').value, games: selected() };
+  history.replaceState(null, '', `?preset=${opts.preset}&format=${opts.format}&seed=${opts.seed}&channel=${opts.channel}`);
   await video.load(opts);
+  $('link').value = video.shareUrl;
   renderBoard();
   draw(t);
 }
@@ -233,7 +243,12 @@ function stop() {
 
 $('play').onclick = () => (playing ? stop() : play());
 $('scrub').oninput = (e) => seek(Number(e.target.value));
-$('preset').onchange = $('format').onchange = $('seed').onchange = reload;
+$('preset').onchange = $('format').onchange = $('seed').onchange = $('channel').onchange = reload;
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('link').value); } catch { $('link').select(); document.execCommand('copy'); }
+  $('copy').textContent = '✅ Kopyalandı';
+  setTimeout(() => ($('copy').textContent = '📋 Kopyala'), 1500);
+};
 $('dice').onclick = () => { $('seed').value = 1 + Math.floor(Math.random() * 9999); reload(); };
 
 $('record').onclick = async () => {
@@ -260,7 +275,8 @@ $('record').onclick = async () => {
   await new Promise((r) => { rec.onstop = r; rec.stop(); });
   const blob = new Blob(chunks, { type: mime });
   const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
-  const name = `geogo_${$('preset').value}_${$('format').value}_s${$('seed').value}.${ext}`;
+  const ch = $('channel').value;
+  const name = `geogo_${$('preset').value}_${$('format').value}${ch === 'genel' ? '' : '_' + ch}_s${$('seed').value}.${ext}`;
   const url = URL.createObjectURL(blob);
   const a = Object.assign(document.createElement('a'), { href: url, download: name });
   a.click();

@@ -40,6 +40,31 @@ export const FORMATS = {
   '1x1': { w: 1080, h: 1080, label: 'Kare 1:1 (Instagram gönderi)' },
 };
 
+// Paylaşım kanalları: QR kod ve paylaşım bağlantısı bu kanala göre UTM etiketi alır,
+// Google Analytics'te "Edinme > Trafik edinme" altında hangi kanalın ziyaretçi getirdiği görünür.
+export const CHANNELS = {
+  genel: { label: 'Genel (kanal yok)', source: 'video', medium: 'video' },
+  instagram: { label: 'Instagram Reels', source: 'instagram', medium: 'social' },
+  youtube: { label: 'YouTube / Shorts', source: 'youtube', medium: 'video' },
+  tiktok: { label: 'TikTok', source: 'tiktok', medium: 'social' },
+  facebook: { label: 'Facebook grupları', source: 'facebook', medium: 'social' },
+  whatsapp: { label: 'WhatsApp grupları', source: 'whatsapp', medium: 'messaging' },
+  telegram: { label: 'Telegram', source: 'telegram', medium: 'messaging' },
+  reklam: { label: 'Ücretli reklam (Meta)', source: 'meta', medium: 'paid_social' },
+};
+
+// Kanal + kurgu + format → izlenebilir bağlantı
+export function trackingUrl({ host, preset = 'genel', format = '16x9', channel = 'genel', via = 'link', path = '/' }) {
+  const ch = CHANNELS[channel] || CHANNELS.genel;
+  const q = new URLSearchParams({
+    utm_source: ch.source,
+    utm_medium: ch.medium,
+    utm_campaign: `geogo_video_${preset}`,
+    utm_content: `${format}_${via}`,
+  });
+  return `https://${host}${path}?${q}`;
+}
+
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return () => {

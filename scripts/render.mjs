@@ -19,6 +19,7 @@ const list = (v, all, def) => (!v ? def : v === 'all' ? all : v.split(',').map((
 const presets = list(args.preset, ALL_PRESETS, ['genel']);
 const formats = list(args.format, ALL_FORMATS, ['16x9']);
 const seed = Number(args.seed || 1);
+const channels = list(args.channel, ['genel', 'instagram', 'youtube', 'tiktok', 'facebook', 'whatsapp', 'telegram', 'reklam'], ['genel']);
 const outDir = resolve(args.out || 'out');
 const quick = args.quick === 'true'; // hızlı test: 10 sn, 15 fps
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
@@ -47,13 +48,13 @@ function ffmpegJob(file, wav, fps) {
 
 const results = [];
 try {
-  for (const preset of presets) {
+  for (const channel of channels) for (const preset of presets) {
     for (const format of formats) {
-      const name = `geogo_${preset}_${format}_s${seed}`;
+      const name = `geogo_${preset}_${format}${channel === 'genel' ? '' : '_' + channel}_s${seed}`;
       const t0 = Date.now();
       const page = await browser.newPage();
       page.on('pageerror', (e) => console.error('[sayfa]', e.message));
-      await page.goto(`${base}?preset=${preset}&format=${format}&seed=${seed}`, { waitUntil: 'networkidle0' });
+      await page.goto(`${base}?preset=${preset}&format=${format}&seed=${seed}&channel=${channel}`, { waitUntil: 'networkidle0' });
       const script = await page.evaluate(() => window.GV.ready);
       const { DURATION, FPS } = await page.evaluate(() => ({ DURATION: window.GV.DURATION, FPS: window.GV.FPS }));
       const fps = quick ? 15 : FPS;
@@ -79,7 +80,8 @@ try {
       await page.close();
       const sec = ((Date.now() - t0) / 1000).toFixed(0);
       console.log(`\r✅ ${file} (${sec} sn) — oyunlar: ${script.games.join(', ')}`);
-      results.push({ name, file, games: script.games });
+      results.push({ name, file, channel, games: script.games, link: script.shareUrl });
+      await writeFile(join(outDir, `${name}.link.txt`), `${script.shareUrl}\n`);
     }
   }
 } finally {
