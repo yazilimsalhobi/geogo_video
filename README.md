@@ -19,6 +19,10 @@ Videolar oyunların **eğitici**, **akıllı tahta uyumlu** ve **eğlenceli** ol
 
 Müzik ve efektler koddan üretilir (120 BPM, telifsiz); sahne geçişleriyle senkrondur.
 
+Her sahnenin altında kayan gökkuşağı şeritli, harfleri zıplayan **geogames.site** bandı vardır; her oyun kartında da sarı `geogames.site` etiketi bulunur.
+
+**Geogo pozları** (`assets/mascot/`): düşünen (kanca sorusu), mutlu (cevap, Eğlenceli), sırt çantalı (marka), harita (Eğitici), öğretmen (akıllı tahta), dürbün (çağrı, yatay/kare), araba (çağrı, dikey) ve oyun kartlarının köşesinde dönüşümlü olarak araba, kamera, harita, dürbün, kışlık, işaret eden, mutlu, sırt çantalı.
+
 ## Kurgular ve formatlar
 
 | Kurgu | Hedef |

@@ -16,6 +16,15 @@ export const SCENES = [
 ];
 export const CARD_LEN = 4; // montajda oyun başına saniye
 
+// Geogo pozları (assets/mascot/<ad>.webp, şeffaf arka plan)
+export const MASCOTS = [
+  'geogo-durbun', 'geogo-ogretmen', 'geogo-sol', 'geogo-sag', 'geogo-dusunen', 'geogo-harita',
+  'geogo-mutlu', 'geogo-araba', 'geogo-kis', 'geogo-kamera', 'geogo-sirt',
+];
+// Montajda her oyun kartının yanında beliren Geogo (seed ile kaydırılır)
+const CARD_MASCOTS = ['geogo-araba', 'geogo-kamera', 'geogo-harita', 'geogo-durbun', 'geogo-kis', 'geogo-sag', 'geogo-mutlu', 'geogo-sirt'];
+const RAINBOW = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
+
 const DISPLAY = "'Baloo 2', 'Nunito', system-ui, sans-serif";
 const BODY = "'Nunito', system-ui, sans-serif";
 const NAVY = '#0f1b3d';
@@ -99,10 +108,12 @@ export class GeoGoVideo {
       if (this.images[id]) continue;
       jobs.push(loadImage(`${base}posters/${id}.webp`).then((im) => (this.images[id] = im)));
     }
-    for (let i = 1; i <= 4; i++) {
-      const k = 'geogo' + i;
+    for (const k of MASCOTS) {
       if (!this.images[k]) jobs.push(loadImage(`${base}mascot/${k}.webp`).then((im) => (this.images[k] = im)));
     }
+    // alt bant yüksekliği ve maskotların bastığı "zemin"
+    this.bh = Math.round(fmt.h * (this.mode === 'port' ? 0.07 : this.mode === 'square' ? 0.1 : 0.11));
+    this.floor = fmt.h - this.bh * 0.82;
     if (document.fonts) {
       jobs.push(
         Promise.all([
@@ -323,6 +334,17 @@ export class GeoGoVideo {
       ctx.fillRect(-w / 2, -h / 2, w, h);
     }
     ctx.restore();
+    if (o.label) {
+      // kartın alt kenarına yapışık geogames.site etiketi
+      const ls = 26 * u * (h / (700 * u));
+      const k = 1 + Math.sin((o.t || 0) * 6) * 0.04;
+      ctx.save();
+      ctx.translate(w * (o.labelX ?? -0.2), h / 2 + b * 0.2);
+      ctx.rotate(-0.03);
+      ctx.scale(k, k);
+      this.pill(SITE_URL, 0, 0, { size: Math.max(ls, 22 * u), bg: YELLOW, fg: NAVY, border: '#fff' });
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -335,8 +357,8 @@ export class GeoGoVideo {
     const sc = SCENES.find((s) => t >= s.start && t < s.end) || SCENES[SCENES.length - 1];
     const s = t - sc.start;
     this[sc.id](s, t, sc.end - sc.start);
-    if (t > 6.2 && t < 53.8) this.watermark(t);
     this.transitions(t);
+    this.banner(t);
     // açılış/kapanış kararması
     const fade = Math.max(1 - t / 0.25, prog(t, DURATION - 0.35, DURATION));
     if (fade > 0) {
@@ -346,13 +368,120 @@ export class GeoGoVideo {
     ctx.restore();
   }
 
-  watermark(t) {
-    const { u, W } = this;
-    const size = 26 * u;
-    const w = this.pillWidth(SITE_URL, size);
-    const x = this.mode === 'port' ? W / 2 - w / 2 : W - w - 36 * u;
-    const y = this.mode === 'port' ? 90 * u : 56 * u;
-    this.pill(SITE_URL, x, y, { size, align: 'left', bg: 'rgba(255,255,255,0.92)' });
+  // Her sahnede altta duran renkli, hareketli geogames.site bandı
+  banner(t) {
+    const { ctx, W, H, u, bh, mode } = this;
+    const enter = outBack(prog(t, 0.15, 0.75));
+    const y0 = H - bh * enter;
+    const beat = Math.pow(1 - ((t * 2) % 1), 4); // 120 BPM nabız
+    ctx.save();
+    // şeker çubuğu şeritler (kayan)
+    ctx.beginPath();
+    ctx.rect(0, y0, W, bh);
+    ctx.clip();
+    const sw = bh * 0.9, sk = bh * 0.6;
+    const off = (t * 160 * u) % (sw * RAINBOW.length);
+    for (let x = -sw * RAINBOW.length - sk + off, k = 0; x < W + sw; x += sw, k++) {
+      ctx.fillStyle = RAINBOW[k % RAINBOW.length];
+      ctx.beginPath();
+      ctx.moveTo(x, y0 + bh);
+      ctx.lineTo(x + sk, y0);
+      ctx.lineTo(x + sk + sw, y0);
+      ctx.lineTo(x + sw, y0 + bh);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // parlak üst kenar + hafif gölge
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + bh);
+    g.addColorStop(0, 'rgba(255,255,255,0.35)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y0, W, bh);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, y0, W, 6 * u);
+    ctx.restore();
+
+    const cy = y0 + bh * 0.52;
+    // yan rozetler (yatay/kare)
+    if (mode !== 'port') {
+      const cs = bh * 0.26;
+      const l = 'ÜCRETSİZ', r = 'HEMEN OYNA ▶';
+      const wob = (ph) => 1 + Math.sin(t * 6 + ph) * 0.05;
+      ctx.save();
+      ctx.translate(W * (mode === 'square' ? 0.13 : 0.12), cy);
+      ctx.rotate(-0.06);
+      ctx.scale(wob(0), wob(0));
+      this.pill(l, 0, 0, { size: cs, bg: YELLOW, fg: NAVY, border: '#fff' });
+      ctx.restore();
+      ctx.save();
+      ctx.translate(W * (mode === 'square' ? 0.86 : 0.87), cy);
+      ctx.rotate(0.06);
+      ctx.scale(wob(2), wob(2));
+      this.pill(r, 0, 0, { size: cs, bg: '#fff', fg: '#db2777', border: '#db2777' });
+      ctx.restore();
+    }
+    // orta: gökkuşağı harfli geogames.site
+    const size = bh * (mode === 'port' ? 0.56 : 0.5);
+    ctx.font = `800 ${size}px ${DISPLAY}`;
+    const letters = [...SITE_URL];
+    const widths = letters.map((ch) => ctx.measureText(ch).width);
+    const tw = widths.reduce((a, b) => a + b, 0);
+    const pw = tw + size * 1.3, ph = bh * 0.78;
+    ctx.save();
+    ctx.translate(W / 2, cy);
+    const k = 1 + beat * 0.05;
+    ctx.scale(k, k);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 18 * u;
+    ctx.shadowOffsetY = 6 * u;
+    ctx.fillStyle = '#fff';
+    rr(ctx, -pw / 2, -ph / 2, pw, ph, ph / 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.lineWidth = 5 * u;
+    ctx.strokeStyle = NAVY;
+    rr(ctx, -pw / 2, -ph / 2, pw, ph, ph / 2);
+    ctx.stroke();
+    let x = -tw / 2;
+    letters.forEach((ch, i) => {
+      const dy = Math.sin(t * 7 - i * 0.55) * size * 0.08;
+      const col = ch === '.' ? NAVY : RAINBOW[(i + Math.floor(t * 4)) % RAINBOW.length];
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = size * 0.14;
+      ctx.strokeStyle = NAVY;
+      ctx.strokeText(ch, x, dy + size * 0.05);
+      ctx.fillStyle = col;
+      ctx.fillText(ch, x, dy + size * 0.05);
+      x += widths[i];
+    });
+    ctx.restore();
+    // pırıltılar
+    const sp = [[-0.55, -0.45, 0], [0.56, -0.4, 1.3], [-0.6, 0.35, 2.1], [0.6, 0.38, 0.7]];
+    sp.forEach(([fx, fy, ph2]) => {
+      const a = Math.max(0, Math.sin(t * 5 + ph2 * 3));
+      if (a <= 0.05) return;
+      this.sparkle(W / 2 + fx * pw * 1.05, cy + fy * bh, bh * 0.16 * a, `rgba(255,255,255,${a})`);
+    });
+  }
+
+  sparkle(x, y, r, col) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const rad = i % 2 ? r * 0.28 : r;
+      const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   transitions(t) {
@@ -436,9 +565,9 @@ export class GeoGoVideo {
     // cevap + maskot
     const ap = prog(s, 3.55, 4.05);
     if (ap > 0) {
-      const as = this.fit(hk.a, port || mode === 'square' ? W * 0.88 : W * 0.58, (port ? 110 : 120) * u);
+      const as = this.fit(hk.a, port || mode === 'square' ? W * 0.88 : W * 0.52, (port ? 110 : 120) * u);
       const sqm = mode === 'square';
-      const ax = port || sqm ? W / 2 : W * 0.38;
+      const ax = port || sqm ? W / 2 : W * 0.35;
       const ay = port ? H * 0.3 : sqm ? H * 0.24 : H * 0.42;
       ctx.save();
       ctx.translate(ax, ay);
@@ -446,19 +575,20 @@ export class GeoGoVideo {
       ctx.scale(k, k);
       this.text(hk.a, 0, 0, { size: as, fill: YELLOW, stroke: NAVY });
       ctx.restore();
-      const lp = prog(s, 4.1, 4.6);
-      if (lp > 0) {
-        ctx.globalAlpha = lp;
-        this.pill('geogames.site', ax, ay + as * 1.1, { size: 40 * u, bg: '#fff' });
-        ctx.globalAlpha = 1;
-      }
+    }
+    // düşünen Geogo soruyla birlikte gelir, cevapta sevinçle zıplayan Geogo'ya döner
+    const tin = outBack(prog(s, 0.7, 1.2)), tout = inCubic(prog(s, 3.1, 3.45));
+    if (tin > 0 && tout < 1) {
+      const mh = port ? H * 0.24 : mode === 'square' ? H * 0.36 : H * 0.44;
+      const mx = port ? W / 2 : W * 0.88;
+      this.mascot('geogo-dusunen', mx + (1 - tin) * W * 0.3, this.floor + tout * mh * 1.3, mh, s, { amp: 0.01 });
     }
     const mp = prog(s, 3.3, 3.9);
     if (mp > 0) {
-      const mh = port ? H * 0.42 : mode === 'square' ? H * 0.55 : H * 0.78;
-      const mx = port || mode === 'square' ? W / 2 : W * 0.8;
-      const by = lerp(H + mh, H * (port ? 0.93 : 1.02), outBack(mp));
-      this.mascot('geogo3', mx, by, mh, s);
+      const mh = port ? H * 0.4 : mode === 'square' ? H * 0.5 : H * 0.58;
+      const mx = port || mode === 'square' ? W / 2 : W * 0.83;
+      const by = lerp(H + mh, this.floor, outBack(mp));
+      this.mascot('geogo-mutlu', mx, by, mh, s, { amp: 0.06 });
     }
   }
 
@@ -493,7 +623,7 @@ export class GeoGoVideo {
     const sp = prog(s, 0.9, 1.3);
     if (sp > 0) {
       ctx.globalAlpha = sp;
-      const ss = this.fit('Haritaları Keşfet, Dünyayı Öğren', port ? W * 0.86 : W * 0.55, 58 * u, 800, BODY);
+      const ss = this.fit('Haritaları Keşfet, Dünyayı Öğren', port ? W * 0.86 : W * 0.48, 58 * u, 800, BODY);
       this.text('Haritaları Keşfet, Dünyayı Öğren', tx, ty + size * 0.62 + (1 - sp) * 30 * u, { size: ss, font: BODY, fill: '#fff' });
       ctx.globalAlpha = 1;
     }
@@ -507,10 +637,9 @@ export class GeoGoVideo {
       ctx.restore();
     }
     const mp = prog(s, 0.3, 0.9);
-    const mh = sqb ? H * 0.5 : port ? H * 0.42 : H * 0.8;
-    const mx = port ? W / 2 : W * 0.19;
-    const by = sqb ? H * 1.02 : port ? H * 0.95 : H * 1.02;
-    this.mascot('geogo1', lerp(-W * 0.4, mx, outBack(mp)), by, mh, s);
+    const mh = sqb ? H * 0.44 : port ? H * 0.36 : H * 0.58;
+    const mx = port ? W / 2 : W * 0.17;
+    this.mascot('geogo-sirt', lerp(-W * 0.4, mx, outBack(mp)), this.floor, mh, s);
   }
 
   // ---------- 3) Oyun montajı: 10–42 sn ----------
@@ -533,9 +662,9 @@ export class GeoGoVideo {
     const port = mode === 'port';
     const sq = mode === 'square';
     const img = this.images[g.id];
-    const ph = port ? H * 0.45 : sq ? H * 0.6 : H * 0.76;
+    const ph = port ? H * 0.45 : sq ? H * 0.54 : H * 0.68;
     const pcx = port ? W / 2 : sq ? W * 0.29 : W * 0.29;
-    const pcy = port ? H * 0.34 : sq ? H * 0.55 : H * 0.53;
+    const pcy = port ? H * 0.34 : sq ? H * 0.47 : H * 0.46;
     const ein = prog(ls, 0, 0.55);
     const eout = prog(ls, CARD_LEN - 0.4, CARD_LEN);
     const last = i === games.length - 1;
@@ -551,7 +680,19 @@ export class GeoGoVideo {
     rr(ctx, -pw / 2, -ph / 2, pw, ph, 30 * u);
     ctx.fill();
     ctx.restore();
-    this.card(img, pcx + ox, pcy - Math.sin(ls * 2) * 6 * u, ph, rot, 1, { zoom: 1 + ls * 0.012, shine: prog(ls, 0.6, 1.4) });
+    this.card(img, pcx + ox, pcy - Math.sin(ls * 2) * 6 * u, ph, rot, 1, { zoom: 1 + ls * 0.012, shine: prog(ls, 0.6, 1.4), label: true, labelX: sq ? 0.2 : -0.2, t: ls });
+
+    // kartın köşesinden bakan Geogo (her kartta farklı poz)
+    const pose = CARD_MASCOTS[(i + this.script.seed) % CARD_MASCOTS.length];
+    const mh = port ? H * 0.17 : sq ? H * 0.3 : H * 0.36;
+    let mx = port ? W * 0.84 : sq ? W * 0.12 : pcx + pw * 0.42;
+    const mb = port ? pcy + ph / 2 + H * 0.03 : this.floor;
+    const pop = outBack(prog(ls, 0.45, 0.85));
+    if (pop > 0) {
+      if (pose === 'geogo-araba') mx -= (1 - outCubic(prog(ls, 0.3, 1.1))) * W * 0.8;
+      const sc = pose === 'geogo-araba' ? 1 : pop;
+      this.mascot(pose, mx + ox, mb, mh, ls, { scale: sc, amp: pose === 'geogo-araba' ? 0.015 : 0.05, flip: pose === 'geogo-sag' && sq });
+    }
 
     // sayaç
     const cnt = `${i + 1} / ${games.length}`;
@@ -559,7 +700,7 @@ export class GeoGoVideo {
     // yazı bloğu
     const tx = port ? W / 2 : sq ? W * 0.55 : W * 0.55;
     const align = port ? 'center' : 'left';
-    const maxW = port ? W * 0.88 : sq ? W * 0.42 : W * 0.4;
+    const maxW = port ? W * 0.88 : sq ? W * 0.41 : W * 0.4;
     const fadeOut = last ? 1 : 1 - prog(ls, CARD_LEN - 0.45, CARD_LEN - 0.15);
     ctx.save();
     ctx.globalAlpha = fadeOut;
@@ -622,7 +763,7 @@ export class GeoGoVideo {
     if (lp > 0) {
       ctx.globalAlpha = fadeOut * lp;
       const url = `${SITE_URL}/oyun/${g.id}`;
-      const us = this.fit(url, maxW, (port ? 34 : 30) * u, 700, BODY);
+      const us = this.fit('▶ ' + url, maxW, (port ? 34 : 30) * u, 700, BODY);
       this.text('▶ ' + url, tx, cy + cs * 2.4, { size: us, align, font: BODY, weight: 700, fill: 'rgba(255,255,255,0.9)', shadow: false });
     }
     ctx.restore();
@@ -643,19 +784,20 @@ export class GeoGoVideo {
     const ein = prog(ls, 0, 0.45);
     const eout = k < 2 ? prog(ls, 2.65, 3) : 0;
     const vx = port ? W / 2 : W * 0.28;
-    const vy = port ? H * 0.32 : H * 0.53;
+    const vy = port ? H * 0.32 : H * 0.47;
     const slide = (1 - outBack(ein)) * -W * 0.5 - inCubic(eout) * W * 0.6;
 
     // görsel
     ctx.save();
     ctx.translate(slide, 0);
     if (k === 0) {
-      // büyüteçli maskot + A+ rozeti
-      const mh = port ? H * 0.4 : mode === 'square' ? H * 0.5 : H * 0.78;
-      this.mascot('geogo2', vx, vy + mh * 0.5, mh, s);
+      // haritasını inceleyen Geogo + A+ rozeti
+      const mh = port ? H * 0.36 : mode === 'square' ? H * 0.46 : H * 0.62;
+      const mb = port ? vy + mh * 0.5 : this.floor;
+      this.mascot('geogo-harita', vx, mb, mh, s);
       const bp = outElastic(prog(ls, 0.5, 1.3));
       ctx.save();
-      ctx.translate(vx + mh * 0.33, vy - mh * 0.3);
+      ctx.translate(vx - mh * 0.36, mb - mh * 0.85);
       ctx.scale(bp, bp);
       ctx.rotate(0.15);
       ctx.fillStyle = YELLOW;
@@ -668,16 +810,24 @@ export class GeoGoVideo {
       this.text('A+', 0, 4 * u, { size: 80 * u, fill: '#16a34a', shadow: false });
       ctx.restore();
     } else if (k === 1) {
-      this.smartBoard(vx, vy, port ? W * 0.82 : W * 0.46, ls);
+      const bw = port ? W * 0.8 : W * 0.42;
+      this.smartBoard(vx, vy, bw, ls);
+      // tahtanın yanında çubuğuyla gösteren öğretmen Geogo
+      const mh = port ? H * 0.17 : mode === 'square' ? H * 0.3 : H * 0.36;
+      const mp = outBack(prog(ls, 0.3, 0.7));
+      const mx = port ? W * 0.82 : vx + bw * 0.5;
+      const mb = port ? vy + bw * 0.6 * 0.5 + H * 0.1 : this.floor;
+      this.mascot('geogo-ogretmen', mx, mb, mh, s, { scale: mp, amp: 0.02 });
     } else {
-      const mh = port ? H * 0.38 : mode === 'square' ? H * 0.48 : H * 0.72;
-      this.confettiBurst(vx, vy - mh * 0.1, ls);
-      this.mascot('geogo4', vx, vy + mh * 0.5, mh, s, { amp: 0.08 });
+      const mh = port ? H * 0.36 : mode === 'square' ? H * 0.46 : H * 0.62;
+      const mb = port ? vy + mh * 0.5 : this.floor;
+      this.confettiBurst(vx, mb - mh * 0.6, ls);
+      this.mascot('geogo-mutlu', vx, mb, mh, s, { amp: 0.1 });
       // skor sayacı
       const sc = Math.round(9850 * outCubic(prog(ls, 0.3, 2)));
       const sp = outBack(prog(ls, 0.2, 0.6));
       ctx.save();
-      ctx.translate(vx - mh * 0.35, vy - mh * 0.38);
+      ctx.translate(vx - mh * 0.3, mb - mh * 1.02);
       ctx.scale(sp, sp);
       ctx.rotate(-0.1);
       this.pill('★ ' + sc.toLocaleString('tr-TR'), 0, 0, { size: 52 * u, bg: '#fff', fg: '#c2410c', border: YELLOW });
@@ -852,10 +1002,10 @@ export class GeoGoVideo {
     ctx.globalAlpha = 1;
     const cols = port ? 1 : 2;
     const cw = port ? W * 0.8 : Math.min(W * 0.4, 700 * u);
-    const ch = port ? H * 0.13 : H * 0.27;
+    const ch = port ? H * 0.13 : H * 0.24;
     const gap = 30 * u;
     const gx = W / 2 - (cols * cw + (cols - 1) * gap) / 2;
-    const gy = port ? H * 0.29 : H * 0.3;
+    const gy = port ? H * 0.29 : H * 0.29;
     const accents = [YELLOW, '#4ade80', '#38bdf8', '#f472b6'];
     items.forEach(([big, small], i) => {
       const p = prog(s, 0.2 + i * 0.18, 0.6 + i * 0.18);
@@ -904,10 +1054,16 @@ export class GeoGoVideo {
     const beat = Math.pow(1 - ((s * 2) % 1), 3) * 0.035; // 120 BPM nabız
     // maskot
     const mp = prog(s, 0, 0.5);
-    const mh = sqc ? H * 0.42 : port ? H * 0.34 : H * 0.7;
-    const mx = sqc ? W * 0.25 : port ? W / 2 : W * 0.17;
-    const mb = port ? H * 0.95 : H * 1.0;
-    this.mascot('geogo3', mx, lerp(H + mh, mb, outBack(mp)), mh, s, { amp: 0.05 });
+    // dikeyde Geogo arabasıyla gelir, diğerlerinde dürbünüyle adresi gösterir
+    if (mode === 'port') {
+      const mh = H * 0.27;
+      const drive = outCubic(prog(s, 0, 0.9));
+      this.mascot('geogo-araba', lerp(-W * 0.6, W * 0.5, drive), this.floor, mh, s, { amp: 0.012 });
+    } else {
+      const mh = sqc ? H * 0.4 : H * 0.6;
+      const mx = sqc ? W * 0.25 : W * 0.17;
+      this.mascot('geogo-durbun', mx, lerp(H + mh, this.floor, outBack(mp)), mh, s, { amp: 0.05 });
+    }
 
     const tx = port ? W / 2 : W * 0.53;
     const maxW = port ? W * 0.88 : W * 0.56;

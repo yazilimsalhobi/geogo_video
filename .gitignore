@@ -3,3 +3,6 @@ out
 *.mp4
 *.wav
 .vercel
+
+.vercel
+.env*
