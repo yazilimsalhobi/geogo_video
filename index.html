@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800&display=block" rel="stylesheet">
 <script src="src/vendor/qrcode.js"></script>
+<script src="src/vendor/mp4-muxer.js"></script>
 <style>
   :root {
     --bg: #0b1430; --panel: #13204a; --line: #24356e; --text: #eef2ff; --muted: #9fb0e0;
@@ -62,6 +63,10 @@
   .board li small { color: var(--muted); font-weight: 700; }
   .releases a { display: block; color: var(--text); font-weight: 700; padding: 6px 0; border-bottom: 1px dashed var(--line); text-decoration: none; }
   .releases a:hover { color: var(--yellow); }
+  .cap { margin-top: 10px; }
+  .cap textarea { width: 100%; min-height: 150px; resize: vertical; font: 600 13px/1.45 'Nunito', system-ui, sans-serif; background: #0b1430; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .cap .bar2 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 12px; color: var(--muted); font-weight: 800; }
+  .cap button { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
   code { background: #0b1430; padding: 1px 6px; border-radius: 6px; }
 </style>
 </head>
@@ -114,10 +119,16 @@
         <div class="row"><input id="link" readonly><div style="flex:none"><button id="copy" title="Kopyala">📋 Kopyala</button></div></div>
       </div>
       <div class="actions">
-        <button id="record" class="pink">⏺ Videoyu kaydet ve indir (60 sn)</button>
+        <button id="record" class="pink">⬇ MP4 olarak indir (60 sn)</button>
         <div class="progress" id="prog"><i></i></div>
-        <div class="hint out" id="out">Kayıt gerçek zamanlı yapılır; sekmeyi açık tutun. Yüksek kaliteli MP4 için aşağıdaki otomasyonu kullanın.</div>
+        <div class="hint out" id="out">Video kare kare MP4 olarak üretilir (genellikle 20–60 sn sürer). Instagram, TikTok, YouTube ve WhatsApp ile uyumludur.</div>
       </div>
+    </div>
+    <div class="card">
+      <h2>✍️ Post yazıları</h2>
+      <p class="hint">Seçili kurgu, kanal ve videodaki oyunlara göre emojili, hashtag'li hazır metinler. Beğenmezseniz yenileyin.</p>
+      <div id="captions"></div>
+      <button id="regen" style="width:100%;margin-top:10px">🔄 Yeni yazılar üret</button>
     </div>
     <div class="card">
       <h2>⚙️ Otomasyon</h2>
@@ -130,6 +141,8 @@
 <script type="module">
 import { GeoGoVideo, DURATION, SCENES, CARD_LEN } from './src/engine.js';
 import { scheduleSoundtrack } from './src/music.js';
+import { exportMp4, canExportMp4 } from './src/export.js';
+import { generateCaptions } from './src/captions.js';
 import { PRESETS, FORMATS, CHANNELS } from './src/presets.js';
 import { GAMES, gameById } from './src/games.js';
 
@@ -137,7 +150,7 @@ const REPO = 'yazilimsalhobi/geogo_video';
 const $ = (id) => document.getElementById(id);
 const cv = $('cv');
 const video = new GeoGoVideo(cv);
-let t = 0, playing = null, recording = false;
+let t = 0, playing = null, recording = false, capSeed = 1;
 
 for (const [k, p] of Object.entries(PRESETS)) $('preset').add(new Option(p.label, k));
 for (const [k, f] of Object.entries(FORMATS)) $('format').add(new Option(f.label, k));
@@ -169,9 +182,26 @@ async function reload() {
   history.replaceState(null, '', `?preset=${opts.preset}&format=${opts.format}&seed=${opts.seed}&channel=${opts.channel}`);
   await video.load(opts);
   $('link').value = video.shareUrl;
+  renderCaptions();
   renderBoard();
   draw(t);
 }
+
+function renderCaptions() {
+  const ch = $('channel').value;
+  const texts = generateCaptions({ preset: video.script.preset, channel: ch, games: video.script.games, link: video.shareUrl, seed: capSeed }, 3);
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  $('captions').innerHTML = texts.map((tx, i) => `<div class="cap"><div class="bar2"><span>Seçenek ${i + 1} · ${$('channel').selectedOptions[0].text}</span><button data-i="${i}">📋 Kopyala</button></div><textarea id="cap${i}">${esc(tx)}</textarea></div>`).join('');
+}
+$('captions').addEventListener('click', async (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const ta = $('cap' + b.dataset.i);
+  try { await navigator.clipboard.writeText(ta.value); } catch { ta.select(); document.execCommand('copy'); }
+  b.textContent = '✅ Kopyalandı';
+  setTimeout(() => (b.textContent = '📋 Kopyala'), 1500);
+});
+$('regen').onclick = () => { capSeed++; renderCaptions(); };
 
 function renderBoard() {
   const s = video.script;
@@ -251,11 +281,19 @@ $('copy').onclick = async () => {
 };
 $('dice').onclick = () => { $('seed').value = 1 + Math.floor(Math.random() * 9999); reload(); };
 
-$('record').onclick = async () => {
-  if (recording) return;
-  recording = true;
-  $('record').disabled = true;
-  stop();
+const fileName = (ext) => {
+  const ch = $('channel').value;
+  return `geogo_${$('preset').value}_${$('format').value}${ch === 'genel' ? '' : '_' + ch}_s${$('seed').value}.${ext}`;
+};
+const progress = (p) => ($('prog').firstElementChild.style.width = `${Math.round(p * 100)}%`);
+function deliver(blob, name, note = '') {
+  const url = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), { href: url, download: name }).click();
+  $('out').innerHTML = `✅ Hazır: <a href="${url}" download="${name}">${name}</a> (${(blob.size / 1e6).toFixed(1)} MB)${note}`;
+}
+
+// Yedek yol: gerçek zamanlı MediaRecorder kaydı (WebCodecs olmayan tarayıcılar için)
+async function recordRealtime() {
   t = 0;
   const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m));
   const vstream = cv.captureStream(30);
@@ -268,19 +306,32 @@ $('record').onclick = async () => {
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.start(1000);
   });
-  $('prog').style.display = 'block';
-  const iv = setInterval(() => ($('prog').firstElementChild.style.width = `${(t / DURATION) * 100}%`), 250);
+  const iv = setInterval(() => progress(t / DURATION), 250);
   await p.finished;
   clearInterval(iv);
   await new Promise((r) => { rec.onstop = r; rec.stop(); });
-  const blob = new Blob(chunks, { type: mime });
-  const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
-  const ch = $('channel').value;
-  const name = `geogo_${$('preset').value}_${$('format').value}${ch === 'genel' ? '' : '_' + ch}_s${$('seed').value}.${ext}`;
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement('a'), { href: url, download: name });
-  a.click();
-  $('out').innerHTML = `✅ Hazır: <a href="${url}" download="${name}">${name}</a> (${(blob.size / 1e6).toFixed(1)} MB)`;
+  deliver(new Blob(chunks, { type: mime }), fileName(mime.startsWith('video/mp4') ? 'mp4' : 'webm'),
+    '<br>⚠️ Bu tarayıcı hızlı MP4 üretimini desteklemiyor; dosya bazı telefonlarda tam oynamayabilir. Bilgisayarda Chrome veya Edge kullanın.');
+}
+
+$('record').onclick = async () => {
+  if (recording) return;
+  recording = true;
+  $('record').disabled = true;
+  stop();
+  $('prog').style.display = 'block';
+  progress(0);
+  try {
+    if (!canExportMp4()) throw new Error('WebCodecs yok');
+    $('out').textContent = 'MP4 hazırlanıyor… (müzik + kareler kodlanıyor)';
+    const blob = await exportMp4(video, { onProgress: progress });
+    draw(t);
+    deliver(blob, fileName('mp4'), '<br>Instagram, TikTok, YouTube ve WhatsApp ile uyumlu MP4 (H.264 + AAC).');
+  } catch (e) {
+    console.warn('Hızlı MP4 üretilemedi, gerçek zamanlı kayda geçiliyor:', e);
+    $('out').textContent = 'Gerçek zamanlı kayıt yapılıyor (60 sn), sekmeyi açık tutun…';
+    await recordRealtime();
+  }
   $('prog').style.display = 'none';
   $('record').disabled = false;
   recording = false;

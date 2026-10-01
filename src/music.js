@@ -168,11 +168,14 @@ export function scheduleSoundtrack(ac, dest, when0 = 0, offset = 0) {
   return master;
 }
 
-export async function renderSoundtrackWav(sampleRate = 48000) {
+export async function renderSoundtrack(sampleRate = 48000) {
   const ac = new OfflineAudioContext(2, Math.ceil(sampleRate * DURATION), sampleRate);
   scheduleSoundtrack(ac, ac.destination, 0, 0);
-  const buf = await ac.startRendering();
-  return encodeWav(buf);
+  return ac.startRendering();
+}
+
+export async function renderSoundtrackWav(sampleRate = 48000) {
+  return encodeWav(await renderSoundtrack(sampleRate));
 }
 
 function encodeWav(buf) {

@@ -77,6 +77,9 @@ try {
       const thumb = await page.evaluate(() => window.GV.frame(13.2, 0.9));
       await writeFile(join(outDir, `${name}.jpg`), Buffer.from(thumb.split(',')[1], 'base64'));
       await rm(wav);
+      // hazır post yazıları (3 seçenek)
+      const posts = await page.evaluate(() => window.GV.captions(3));
+      await writeFile(join(outDir, `${name}.post.txt`), posts.map((p, k) => `===== Seçenek ${k + 1} =====\n${p}\n`).join('\n'));
       await page.close();
       const sec = ((Date.now() - t0) / 1000).toFixed(0);
       console.log(`\r✅ ${file} (${sec} sn) — oyunlar: ${script.games.join(', ')}`);

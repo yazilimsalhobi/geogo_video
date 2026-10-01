@@ -23,6 +23,26 @@ Her sahnenin altında kayan gökkuşağı şeritli, harfleri zıplayan **geogame
 
 **Geogo pozları** (`assets/mascot/`): düşünen (kanca sorusu), mutlu (cevap, Eğlenceli), sırt çantalı (marka), harita (Eğitici), öğretmen (akıllı tahta), dürbün (çağrı, yatay/kare), araba (çağrı, dikey) ve oyun kartlarının köşesinde dönüşümlü olarak araba, kamera, harita, dürbün, kışlık, işaret eden, mutlu, sırt çantalı.
 
+## Stüdyodan MP4 indirme
+
+**⬇ MP4 olarak indir** butonu videoyu kare kare çizip tarayıcıda **H.264 + AAC MP4** olarak kodlar (WebCodecs + `mp4-muxer`). Süre bilgisi dosyanın başına yazılır (faststart). Bu sayede Instagram, TikTok, YouTube ve WhatsApp dosyanın tamamını okuyabilir. Eski gerçek zamanlı kayıtta (MediaRecorder) telefonlar yalnızca ilk birkaç saniyeyi gösteriyordu. Bu kayıt artık yalnızca WebCodecs olmayan tarayıcılarda yedek olarak kullanılır. Bilgisayarda Chrome veya Edge önerilir; 60 sn'lik video yaklaşık 1–1,5 dakikada hazırlanır (~45 MB).
+
+## Post yazısı üretici
+
+Stüdyodaki **✍️ Post yazıları** kartı, seçili kurgu, kanal ve videodaki oyunlara göre 3 farklı, emojili ve hashtag'li paylaşım metni üretir. **🔄 Yeni yazılar üret** her basışta yeni bir set verir.
+
+| Kanal | Biçim |
+|---|---|
+| Instagram | Uzun metin, 15 hashtag; tıklanabilir link olmadığı için "bağlantı profilde" |
+| TikTok | Kısa metin, 5 hashtag |
+| YouTube | Başlık önerisi + açıklama + etiket listesi |
+| Facebook | Uzun metin, 4 hashtag |
+| WhatsApp | Kısa metin, hashtag yok, izlenebilir link |
+| Telegram | Orta uzunluk, 3 hashtag |
+| Ücretli reklam | Kısa reklam metni |
+
+Komut satırı ve otomasyon da her videonun yanına 3 seçenekli `.post.txt` dosyası üretir.
+
 ## Kanal takibi
 
 Stüdyoda **Paylaşılacak kanal** seçilince (Instagram, YouTube, TikTok, Facebook, WhatsApp, Telegram, Ücretli reklam) videodaki QR kod ve **paylaşım bağlantısı** o kanala göre UTM etiketi alır:

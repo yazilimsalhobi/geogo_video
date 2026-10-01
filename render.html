@@ -16,6 +16,7 @@
 // Headless üretim sayfası: scripts/render.mjs bu sayfayı açar ve kareleri tek tek ister.
 import { GeoGoVideo, DURATION, FPS } from './src/engine.js';
 import { renderSoundtrackWav } from './src/music.js';
+import { generateCaptions } from './src/captions.js';
 
 const q = new URLSearchParams(location.search);
 const video = new GeoGoVideo(document.getElementById('c'));
@@ -28,6 +29,9 @@ window.GV = {
     channel: q.get('channel') || 'genel',
     games: q.get('games') ? q.get('games').split(',') : null,
   }).then(() => ({ ...video.script, shareUrl: video.shareUrl, qrUrl: video.qrUrl })),
+  captions(n = 3) {
+    return generateCaptions({ preset: video.script.preset, channel: video.channel, games: video.script.games, link: video.shareUrl, seed: video.script.seed }, n);
+  },
   frame(t, quality = 0.92) {
     video.draw(t);
     return video.canvas.toDataURL('image/jpeg', quality);
