@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>GeoGo Video – render</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@700;800&display=block" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+<script src="src/vendor/qrcode.js"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+// Headless üretim sayfası: scripts/render.mjs bu sayfayı açar ve kareleri tek tek ister.
+import { GeoGoVideo, DURATION, FPS } from './src/engine.js';
+import { renderSoundtrackWav } from './src/music.js';
+
+const q = new URLSearchParams(location.search);
+const video = new GeoGoVideo(document.getElementById('c'));
+window.GV = {
+  DURATION, FPS,
+  ready: video.load({
+    preset: q.get('preset') || 'genel',
+    format: q.get('format') || '16x9',
+    seed: Number(q.get('seed') || 1),
+    games: q.get('games') ? q.get('games').split(',') : null,
+  }).then(() => video.script),
+  frame(t, quality = 0.92) {
+    video.draw(t);
+    return video.canvas.toDataURL('image/jpeg', quality);
+  },
+  async audio() {
+    const bytes = await renderSoundtrackWav(48000);
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  },
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoGo Video Stüdyosu</title>
+<meta name="description" content="geogames.site için 1 dakikalık reklam videolarını otomatik üreten stüdyo.">
+<link rel="icon" href="assets/mascot/geogo3.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800&display=block" rel="stylesheet">
+<script src="src/vendor/qrcode.js"></script>
+<style>
+  :root {
+    --bg: #0b1430; --panel: #13204a; --line: #24356e; --text: #eef2ff; --muted: #9fb0e0;
+    --yellow: #fde047; --pink: #f472b6; --green: #4ade80; --navy: #0f1b3d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 20% -10%, #2b1b6b 0%, var(--bg) 60%); background-color: var(--bg); color: var(--text); font-family: 'Nunito', system-ui, sans-serif; min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 14px; padding: 18px 24px; max-width: 1400px; margin: 0 auto; }
+  header img { width: 56px; height: 56px; object-fit: contain; }
+  header h1 { font-family: 'Baloo 2', sans-serif; font-size: 30px; margin: 0; line-height: 1; }
+  header h1 span { color: var(--yellow); }
+  header p { margin: 4px 0 0; color: var(--muted); font-weight: 700; font-size: 14px; }
+  header a.site { margin-left: auto; color: var(--navy); background: var(--yellow); padding: 10px 16px; border-radius: 999px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; padding: 0 24px 40px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; padding: 0 16px 32px; } header { padding: 16px; flex-wrap: wrap; } header a.site { margin-left: 0; } }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .screen { display: flex; justify-content: center; align-items: center; background: #050a1c; border-radius: 12px; overflow: hidden; height: min(62vh, 640px); }
+  .screen canvas { max-width: 100%; max-height: 100%; display: block; }
+  .transport { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .transport button { flex: none; }
+  .bar { position: relative; flex: 1; }
+  .bar input { width: 100%; accent-color: var(--yellow); }
+  .marks { position: relative; height: 18px; font-size: 11px; color: var(--muted); font-weight: 800; }
+  .marks span { position: absolute; transform: translateX(-2px); white-space: nowrap; border-left: 2px solid var(--line); padding-left: 4px; }
+  .time { font-variant-numeric: tabular-nums; font-weight: 800; min-width: 90px; text-align: right; }
+  button, .btn { font: inherit; font-weight: 800; border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer; background: #24356e; color: var(--text); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+  button:hover { filter: brightness(1.15); }
+  button.primary { background: var(--yellow); color: var(--navy); }
+  button.pink { background: var(--pink); color: var(--navy); }
+  button:disabled { opacity: .5; cursor: progress; }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .card h2 { font-family: 'Baloo 2', sans-serif; font-size: 20px; margin: 0 0 10px; }
+  label { display: block; font-size: 13px; color: var(--muted); font-weight: 800; margin: 10px 0 6px; }
+  select, input[type=number] { width: 100%; font: inherit; font-weight: 700; background: #0b1430; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .games { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 220px; overflow: auto; margin-top: 6px; }
+  .games label { margin: 0; display: flex; gap: 6px; align-items: center; color: var(--text); font-weight: 700; font-size: 13px; background: #0b1430; border-radius: 8px; padding: 6px 8px; cursor: pointer; }
+  .hint { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .actions { display: grid; gap: 8px; margin-top: 14px; }
+  .progress { height: 8px; background: #0b1430; border-radius: 99px; overflow: hidden; margin-top: 8px; display: none; }
+  .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--yellow), var(--pink)); }
+  .out a { color: var(--yellow); font-weight: 800; }
+  .board { margin-top: 20px; }
+  .board ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .board li { background: #0b1430; border-radius: 12px; padding: 10px 12px; border-top: 4px solid var(--c); cursor: pointer; }
+  .board li b { display: block; font-family: 'Baloo 2', sans-serif; font-size: 16px; }
+  .board li small { color: var(--muted); font-weight: 700; }
+  .releases a { display: block; color: var(--text); font-weight: 700; padding: 6px 0; border-bottom: 1px dashed var(--line); text-decoration: none; }
+  .releases a:hover { color: var(--yellow); }
+  code { background: #0b1430; padding: 1px 6px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/mascot/geogo3.webp" alt="">
+  <div>
+    <h1>GeoGo <span>Video</span> Stüdyosu</h1>
+    <p>geogames.site için 60 saniyelik reklam videoları — eğitici, akıllı tahta uyumlu, eğlenceli.</p>
+  </div>
+  <a class="site" href="https://geogames.site" target="_blank" rel="noopener">geogames.site ↗</a>
+</header>
+
+<main>
+  <section>
+    <div class="stage">
+      <div class="screen"><canvas id="cv"></canvas></div>
+      <div class="transport">
+        <button id="play" class="primary" aria-label="Oynat">▶ Oynat</button>
+        <div class="bar">
+          <input id="scrub" type="range" min="0" max="60" step="0.01" value="0" aria-label="Zaman">
+          <div class="marks" id="marks"></div>
+        </div>
+        <div class="time" id="time">0:00 / 1:00</div>
+      </div>
+    </div>
+    <div class="card board">
+      <h2>🎬 Senaryo (storyboard)</h2>
+      <ol id="board"></ol>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>Kurgu</h2>
+      <label for="preset">Hedef kitle / kurgu</label>
+      <select id="preset"></select>
+      <label for="format">Format</label>
+      <select id="format"></select>
+      <div class="row">
+        <div><label for="seed">Seed (renk/varyasyon)</label><input id="seed" type="number" min="1" value="1"></div>
+        <div style="flex:none;align-self:flex-end"><button id="dice" title="Rastgele seed">🎲</button></div>
+      </div>
+      <label>Oyunlar (en fazla 8, boş bırakılırsa kurgunun seçimi)</label>
+      <div class="games" id="games"></div>
+      <div class="actions">
+        <button id="record" class="pink">⏺ Videoyu kaydet ve indir (60 sn)</button>
+        <div class="progress" id="prog"><i></i></div>
+        <div class="hint out" id="out">Kayıt gerçek zamanlı yapılır; sekmeyi açık tutun. Yüksek kaliteli MP4 için aşağıdaki otomasyonu kullanın.</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>⚙️ Otomasyon</h2>
+      <p class="hint">GitHub Actions her pazartesi tüm kurguları <b>1080p MP4</b> (16:9 + 9:16) olarak üretir ve <b>Releases</b> sayfasına yükler. Elle üretmek için Actions → <i>Render videos</i> → <i>Run workflow</i>. Yerelde: <code>npm run render</code>.</p>
+      <div class="releases" id="releases"><span class="hint">Son videolar yükleniyor…</span></div>
+    </div>
+  </aside>
+</main>
+
+<script type="module">
+import { GeoGoVideo, DURATION, SCENES, CARD_LEN } from './src/engine.js';
+import { scheduleSoundtrack } from './src/music.js';
+import { PRESETS, FORMATS } from './src/presets.js';
+import { GAMES, gameById } from './src/games.js';
+
+const REPO = 'yugobalkan-droid/geogo_video';
+const $ = (id) => document.getElementById(id);
+const cv = $('cv');
+const video = new GeoGoVideo(cv);
+let t = 0, playing = null, recording = false;
+
+for (const [k, p] of Object.entries(PRESETS)) $('preset').add(new Option(p.label, k));
+for (const [k, f] of Object.entries(FORMATS)) $('format').add(new Option(f.label, k));
+GAMES.forEach((g) => {
+  const l = document.createElement('label');
+  l.innerHTML = `<input type="checkbox" value="${g.id}"> ${g.title}`;
+  $('games').append(l);
+});
+const names = { hook: 'Kanca', brand: 'Marka', montage: 'Oyunlar', pillars: '3 Vaat', features: 'Özellikler', cta: 'Çağrı' };
+$('marks').innerHTML = SCENES.map((s) => `<span title="${names[s.id]}" style="left:${(s.start / DURATION) * 100}%">${s.end - s.start >= 5 ? names[s.id] : ''}</span>`).join('');
+
+// URL ↔ ayarlar
+const q = new URLSearchParams(location.search);
+if (q.get('preset') in PRESETS) $('preset').value = q.get('preset');
+if (q.get('format') in FORMATS) $('format').value = q.get('format');
+if (q.get('seed')) $('seed').value = q.get('seed');
+
+const selected = () => [...$('games').querySelectorAll('input:checked')].map((i) => i.value);
+$('games').addEventListener('change', (e) => {
+  if (selected().length > 8) e.target.checked = false;
+  reload();
+});
+
+async function reload() {
+  stop();
+  const opts = { preset: $('preset').value, format: $('format').value, seed: Number($('seed').value) || 1, games: selected() };
+  history.replaceState(null, '', `?preset=${opts.preset}&format=${opts.format}&seed=${opts.seed}`);
+  await video.load(opts);
+  renderBoard();
+  draw(t);
+}
+
+function renderBoard() {
+  const s = video.script;
+  const items = [
+    { at: 0, c: '#f472b6', b: 'Kanca (0–6 sn)', d: `${s.hook.q.join(' ')} → ${s.hook.stamp}` },
+    { at: 6, c: '#fde047', b: 'Marka (6–10 sn)', d: `GeoGames • ${s.gameCount} ücretsiz oyun` },
+    ...s.games.map((id, i) => ({ at: 10 + i * CARD_LEN, c: gameById(id).color, b: `${i + 1}. ${gameById(id).title}`, d: gameById(id).hook })),
+    { at: 42, c: '#22c55e', b: 'Eğitici (42 sn)', d: 'Ders konuları, KPSS/YKS/LGS' },
+    { at: 45, c: '#0ea5e9', b: 'Akıllı tahta (45 sn)', d: 'Dokunmatik, iki takım' },
+    { at: 48, c: '#f59e0b', b: 'Eğlenceli (48 sn)', d: 'Puan, rekor, sınıf yarışı' },
+    { at: 51, c: '#a78bfa', b: 'Özellikler (51 sn)', d: 'Ücretsiz, indirme yok' },
+    { at: 54, c: '#fde047', b: 'Çağrı (54–60 sn)', d: `${s.cta} + QR` },
+  ];
+  $('board').innerHTML = items.map((it) => `<li style="--c:${it.c}" data-at="${it.at}"><b>${it.b}</b><small>${it.d}</small></li>`).join('');
+}
+$('board').addEventListener('click', (e) => {
+  const li = e.target.closest('li');
+  if (li) seek(Number(li.dataset.at) + 1.5);
+});
+
+const fmt = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, '0')}`;
+function draw(x) {
+  t = x;
+  video.draw(x);
+  $('scrub').value = x;
+  $('time').textContent = `${fmt(x)} / ${fmt(DURATION)}`;
+}
+function seek(x) {
+  const was = !!playing;
+  stop();
+  draw(x);
+  if (was) play();
+}
+
+function play(extraDest) {
+  if (t >= DURATION - 0.05) t = 0;
+  const ac = new AudioContext();
+  const out = ac.createGain();
+  out.connect(ac.destination);
+  if (extraDest) extraDest(ac, out);
+  const start = ac.currentTime + 0.15;
+  const offset = t;
+  scheduleSoundtrack(ac, out, start, offset);
+  const p = { ac, raf: 0, done: null };
+  p.finished = new Promise((r) => (p.done = r));
+  const tick = () => {
+    const now = offset + Math.max(0, ac.currentTime - start);
+    if (now >= DURATION) {
+      draw(DURATION - 0.001);
+      stop();
+      return;
+    }
+    draw(now);
+    p.raf = requestAnimationFrame(tick);
+  };
+  p.raf = requestAnimationFrame(tick);
+  playing = p;
+  $('play').textContent = '⏸ Duraklat';
+  return p;
+}
+function stop() {
+  if (!playing) return;
+  cancelAnimationFrame(playing.raf);
+  playing.ac.close();
+  playing.done();
+  playing = null;
+  $('play').textContent = '▶ Oynat';
+}
+
+$('play').onclick = () => (playing ? stop() : play());
+$('scrub').oninput = (e) => seek(Number(e.target.value));
+$('preset').onchange = $('format').onchange = $('seed').onchange = reload;
+$('dice').onclick = () => { $('seed').value = 1 + Math.floor(Math.random() * 9999); reload(); };
+
+$('record').onclick = async () => {
+  if (recording) return;
+  recording = true;
+  $('record').disabled = true;
+  stop();
+  t = 0;
+  const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m));
+  const vstream = cv.captureStream(30);
+  let rec, chunks = [];
+  const p = play((ac, out) => {
+    const dest = ac.createMediaStreamDestination();
+    out.connect(dest);
+    const stream = new MediaStream([...vstream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+    rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    rec.start(1000);
+  });
+  $('prog').style.display = 'block';
+  const iv = setInterval(() => ($('prog').firstElementChild.style.width = `${(t / DURATION) * 100}%`), 250);
+  await p.finished;
+  clearInterval(iv);
+  await new Promise((r) => { rec.onstop = r; rec.stop(); });
+  const blob = new Blob(chunks, { type: mime });
+  const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+  const name = `geogo_${$('preset').value}_${$('format').value}_s${$('seed').value}.${ext}`;
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  a.click();
+  $('out').innerHTML = `✅ Hazır: <a href="${url}" download="${name}">${name}</a> (${(blob.size / 1e6).toFixed(1)} MB)`;
+  $('prog').style.display = 'none';
+  $('record').disabled = false;
+  recording = false;
+};
+
+async function loadReleases() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=3`);
+    if (!r.ok) throw new Error(r.status);
+    const rel = await r.json();
+    const links = rel.flatMap((x) => x.assets.filter((a) => a.name.endsWith('.mp4')).map((a) => `<a href="${a.browser_download_url}">⬇ ${a.name} <small>(${x.tag_name})</small></a>`));
+    $('releases').innerHTML = links.length ? links.slice(0, 12).join('') : '<span class="hint">Henüz otomatik üretilmiş video yok. İlk çalıştırmadan sonra burada görünecek.</span>';
+  } catch {
+    $('releases').innerHTML = `<a href="https://github.com/${REPO}/releases" target="_blank" rel="noopener">GitHub Releases sayfasını aç ↗</a>`;
+  }
+}
+
+await reload();
+draw(3.2);
+loadReleases();
+</script>
+</body>
+</html>
